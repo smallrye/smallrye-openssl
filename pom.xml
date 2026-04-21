@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.smallrye</groupId>
+  <artifactId>smallrye-openssl-parent</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>SmallRye OpenSSL</name>
+  <description>
+    Pre-built netty-tcnative native libraries linked against OpenSSL 3.x,
+    enabling post-quantum cryptography (x25519mlkem768) support.
+  </description>
+
+  <properties>
+    <netty.tcnative.version>2.0.76.Final</netty.tcnative.version>
+    <netty.tcnative.repo>https://github.com/netty/netty-tcnative.git</netty.tcnative.repo>
+    <netty.tcnative.tag>netty-tcnative-parent-${netty.tcnative.version}</netty.tcnative.tag>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <modules>
+    <module>native</module>
+  </modules>
+
+</project>
