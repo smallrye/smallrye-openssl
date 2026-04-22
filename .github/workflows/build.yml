@@ -1,17 +1,13 @@
-name: Build and Release
+name: Build
 
 on:
   push:
     branches: [main]
-    tags: ['*']
   pull_request:
     branches: [main]
 
 jobs:
 
-  # ──────────────────────────────────────────────
-  # Step 1a: Build native .so on RHEL 10 x86_64
-  # ──────────────────────────────────────────────
   build-x86_64:
     name: Build native (RHEL 10 x86_64)
     runs-on: ubuntu-latest
@@ -39,9 +35,6 @@ jobs:
           name: native-linux-x86_64
           path: target/native-jars/netty-tcnative-linux-x86_64*.jar
 
-  # ──────────────────────────────────────────────
-  # Step 1b: Build native .so on RHEL 10 aarch64
-  # ──────────────────────────────────────────────
   build-aarch64:
     name: Build native (RHEL 10 aarch64)
     runs-on: ubuntu-24.04-arm
@@ -62,7 +55,6 @@ jobs:
           mkdir -p target/native-jars
           docker run --rm -v $(pwd)/target/native-jars:/host smallrye-openssl-aarch_64 cp -r /output/. /host/
           sudo chown -R $(id -u):$(id -g) target/
-          ls -la target/native-jars/
 
       - name: Upload native JAR
         uses: actions/upload-artifact@v4
@@ -70,11 +62,8 @@ jobs:
           name: native-linux-aarch_64
           path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
 
-  # ──────────────────────────────────────────────
-  # Step 2: Assemble both platform JARs and deploy
-  # ──────────────────────────────────────────────
   assemble:
-    name: Assemble and publish
+    name: Assemble
     needs: [build-x86_64, build-aarch64]
     runs-on: ubuntu-latest
 
@@ -111,10 +100,3 @@ jobs:
 
       - name: Verify artifacts
         run: ls -la target/*.jar
-
-      - name: Deploy to Maven Central
-        if: startsWith(github.ref, 'refs/tags/')
-        run: mvn deploy -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
-        env:
-          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
