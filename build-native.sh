@@ -1,51 +1,69 @@
 #!/bin/bash
 set -euo pipefail
 
+#
+# Builds netty-tcnative openssl-dynamic against the system's OpenSSL.
+# Outputs the platform-classified JAR to a specified directory.
+#
+# Usage: build-native.sh <repo-url> <tag> <output-dir>
+#
+# The output JAR will be named: netty-tcnative-<arch>.jar
+# where <arch> is detected from the build (e.g., linux-x86_64, linux-aarch_64)
+#
+
 REPO_URL="$1"
 TAG="$2"
-TARGET_DIR="$3"
+OUTPUT_DIR="$3"
 
-CLONE_DIR="${TARGET_DIR}/netty-tcnative-src"
-OUTPUT_DIR="${TARGET_DIR}/native-lib"
+CLONE_DIR="$(mktemp -d)/netty-tcnative"
 
 mkdir -p "${OUTPUT_DIR}"
 
-# Clone netty-tcnative at the specified tag
-if [ ! -d "${CLONE_DIR}" ]; then
-  echo "Cloning netty-tcnative at tag ${TAG}..."
-  git clone --depth 1 --branch "${TAG}" "${REPO_URL}" "${CLONE_DIR}"
-fi
+echo "=== System info ==="
+echo "OpenSSL: $(openssl version)"
+echo "Arch: $(uname -m)"
+echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2)"
+echo ""
 
-# Build openssl-classes and openssl-dynamic
-echo "Building netty-tcnative openssl-dynamic against system OpenSSL..."
-echo "OpenSSL version: $(openssl version)"
+echo "=== Cloning netty-tcnative at tag ${TAG} ==="
+git clone --depth 1 --branch "${TAG}" "${REPO_URL}" "${CLONE_DIR}"
 
+echo "=== Building openssl-dynamic ==="
 mvn -f "${CLONE_DIR}" install \
-  -pl openssl-classes,openssl-dynamic \
+  -pl openssl-dynamic \
   -am \
   -DskipTests \
   -Dmaven.javadoc.skip=true
 
-# Extract the .so from the built JAR
-# The JAR with the native lib has a platform classifier (e.g., linux-x86_64)
-NATIVE_JAR=$(find "${CLONE_DIR}/openssl-dynamic/target" -name "netty-tcnative-*-linux-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -1)
+echo "=== Collecting build output ==="
+
+# Find the platform-classified JAR (e.g., netty-tcnative-2.0.76.Final-linux-x86_64.jar)
+NATIVE_JAR=$(find "${CLONE_DIR}/openssl-dynamic/target" \
+  -name "netty-tcnative-*-linux-*.jar" \
+  ! -name "*-sources.jar" \
+  ! -name "*-javadoc.jar" \
+  | head -1)
 
 if [ -z "${NATIVE_JAR}" ]; then
   echo "ERROR: Could not find built native JAR"
   exit 1
 fi
 
-echo "Found native JAR: ${NATIVE_JAR}"
+# Extract the classifier from the filename (e.g., linux-x86_64 or linux-x86_64-fedora)
+CLASSIFIER=$(basename "${NATIVE_JAR}" | sed -E "s/netty-tcnative-[^-]+-//; s/\.jar//")
 
-# Extract .so files from JAR
-cd "${OUTPUT_DIR}"
-jar xf "${NATIVE_JAR}" META-INF/native/
-mv META-INF/native/*.so . 2>/dev/null || true
-rm -rf META-INF
+echo "Native JAR: ${NATIVE_JAR}"
+echo "Classifier: ${CLASSIFIER}"
 
-echo "Native library built successfully:"
-ls -la "${OUTPUT_DIR}"/*.so
+cp "${NATIVE_JAR}" "${OUTPUT_DIR}/netty-tcnative-${CLASSIFIER}.jar"
 
-# Verify it links against OpenSSL 3.x
-echo "Dynamic dependencies:"
-readelf -d "${OUTPUT_DIR}"/*.so | grep NEEDED
+# Also copy the sources JAR (same for all platforms)
+SOURCES_JAR=$(find "${CLONE_DIR}/openssl-dynamic/target" -name "*-sources.jar" | head -1)
+if [ -n "${SOURCES_JAR}" ]; then
+  cp "${SOURCES_JAR}" "${OUTPUT_DIR}/sources.jar"
+fi
+
+
+echo ""
+echo "=== Done ==="
+echo "Output: ${OUTPUT_DIR}/netty-tcnative-${CLASSIFIER}.jar"

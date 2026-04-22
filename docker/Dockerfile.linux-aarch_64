@@ -1,0 +1,24 @@
+FROM --platform=linux/arm64 registry.access.redhat.com/ubi10/openjdk-21:latest
+
+USER root
+
+RUN microdnf install -y \
+    openssl-devel \
+    apr-devel \
+    autoconf \
+    automake \
+    libtool \
+    gcc \
+    make \
+    git \
+    && microdnf clean all
+
+WORKDIR /build
+COPY build-native.sh /build/
+
+ARG NETTY_TCNATIVE_REPO=https://github.com/netty/netty-tcnative.git
+ARG NETTY_TCNATIVE_TAG=netty-tcnative-parent-2.0.76.Final
+
+RUN chmod +x build-native.sh && \
+    mkdir -p /output && \
+    ./build-native.sh "${NETTY_TCNATIVE_REPO}" "${NETTY_TCNATIVE_TAG}" /output

@@ -8,60 +8,113 @@ on:
     branches: [main]
 
 jobs:
-  build-native:
-    name: Build native library (UBI 9 / OpenSSL 3.x)
+
+  # ──────────────────────────────────────────────
+  # Step 1a: Build native .so on RHEL 10 x86_64
+  # ──────────────────────────────────────────────
+  build-x86_64:
+    name: Build native (RHEL 10 x86_64)
     runs-on: ubuntu-latest
-    container:
-      image: registry.access.redhat.com/ubi9/ubi:latest
 
     steps:
-      - name: Install build dependencies
-        run: |
-          dnf install -y \
-            java-21-openjdk-devel \
-            maven \
-            openssl-devel \
-            apr-devel \
-            autoconf \
-            automake \
-            libtool \
-            gcc \
-            make \
-            git
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show OpenSSL version
-        run: openssl version
-
-      - name: Build
-        run: mvn clean package -DskipTests
-
-      - name: Verify native library
+      - name: Build in RHEL 10 x86_64 container
         run: |
-          find . -name "*.so" -exec readelf -d {} \; | grep NEEDED
+          docker build \
+            -f docker/Dockerfile.linux-x86_64 \
+            -t smallrye-openssl-x86_64 \
+            .
 
-      - name: Upload artifact
+      - name: Extract native JAR
+        run: |
+          mkdir -p target/native-jars
+          docker run --rm -v $(pwd)/target/native-jars:/host smallrye-openssl-x86_64 cp -r /output/. /host/
+          sudo chown -R $(id -u):$(id -g) target/
+
+      - name: Upload native JAR
         uses: actions/upload-artifact@v4
         with:
-          name: smallrye-openssl-native
-          path: native/target/*.jar
+          name: native-linux-x86_64
+          path: target/native-jars/netty-tcnative-linux-x86_64*.jar
 
-  release:
-    name: Publish to Maven Central
-    needs: build-native
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
+  # ──────────────────────────────────────────────
+  # Step 1b: Build native .so on RHEL 10 aarch64
+  # ──────────────────────────────────────────────
+  build-aarch64:
+    name: Build native (RHEL 10 aarch64)
+    runs-on: ubuntu-24.04-arm
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download artifact
+      - name: Build in RHEL 10 aarch64 container
+        run: |
+          docker build \
+            -f docker/Dockerfile.linux-aarch_64 \
+            -t smallrye-openssl-aarch_64 \
+            .
+
+      - name: Extract native JAR
+        run: |
+          mkdir -p target/native-jars
+          docker run --rm -v $(pwd)/target/native-jars:/host smallrye-openssl-aarch_64 cp -r /output/. /host/
+          sudo chown -R $(id -u):$(id -g) target/
+          ls -la target/native-jars/
+
+      - name: Upload native JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-aarch_64
+          path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
+
+  # ──────────────────────────────────────────────
+  # Step 2: Assemble both platform JARs and deploy
+  # ──────────────────────────────────────────────
+  assemble:
+    name: Assemble and publish
+    needs: [build-x86_64, build-aarch64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download x86_64 native JAR
         uses: actions/download-artifact@v4
         with:
-          name: smallrye-openssl-native
+          name: native-linux-x86_64
+          path: target/native-jars
 
-      # TODO: Configure Maven Central publishing via SmallRye release process
-      - name: Publish
-        run: echo "TODO - publish to Maven Central"
+      - name: Download aarch64 native JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch_64
+          path: target/native-jars
+
+      - name: List collected JARs
+        run: ls -la target/native-jars/
+
+      - name: Prepare folder
+        run: mkdir ${{ github.workspace }}/target/native-jars/maven-archiver
+
+      - name: Package assembly
+        run: mvn package -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
+
+      - name: Verify artifacts
+        run: ls -la target/*.jar
+
+      - name: Deploy to Maven Central
+        if: startsWith(github.ref, 'refs/tags/')
+        run: mvn deploy -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}

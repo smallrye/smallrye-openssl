@@ -4,43 +4,79 @@ Pre-built `netty-tcnative` native libraries linked against OpenSSL 3.x, enabling
 
 ## Why this exists
 
-The `netty-tcnative` JARs published on Maven Central contain native `.so` files compiled against OpenSSL 1.x (`libssl.so.10`). Modern Linux distributions ship OpenSSL 3.x (`libssl.so.3`), making those JARs unusable. Additionally, post-quantum key exchange (x25519mlkem768) requires OpenSSL 3.6+.
+The `netty-tcnative` JARs on Maven Central contain native `.so` files compiled against OpenSSL 1.x (`libssl.so.10`). Modern Linux distributions ship OpenSSL 3.x (`libssl.so.3`), making those JARs unusable. Post-quantum key exchange (x25519mlkem768) requires OpenSSL 3.6+ at runtime.
 
-This project builds the same `netty-tcnative` JNI bridge from source against OpenSSL 3.x on UBI 9 (RHEL-based) and publishes it to Maven Central.
+This project builds the `netty-tcnative` JNI bridge from source against OpenSSL 3.x on RHEL/UBI and publishes platform-classified JARs to Maven Central.
 
 ## Usage
-
-Replace your `netty-tcnative` dependency:
 
 ```xml
 <dependency>
   <groupId>io.smallrye</groupId>
-  <artifactId>smallrye-openssl-native</artifactId>
+  <artifactId>smallrye-openssl</artifactId>
   <version>1.0.0</version>
+  <classifier>linux-x86_64</classifier>
 </dependency>
 ```
 
-Your system must have OpenSSL 3.x and `libapr-1` installed. For x25519mlkem768 support, OpenSSL 3.6+ is required at runtime.
+Or for ARM:
+
+```xml
+<classifier>linux-aarch_64</classifier>
+```
+
+Your system must have OpenSSL 3.x and `libapr-1` installed. For x25519mlkem768 support, OpenSSL 3.5+ is required at runtime.
 
 ## How it works
 
-1. Clones `netty-tcnative` at a pinned tag (currently `netty-tcnative-parent-2.0.76.Final`)
-2. Builds the `openssl-dynamic` module inside a UBI 9 container with OpenSSL 3.x
-3. Extracts the resulting `.so` (JNI bridge) and packages it into a JAR under `META-INF/native/`
+```
+┌─────────────────────────┐     ┌─────────────────────────┐
+│  RHEL 10 x86_64 container│     │ RHEL 10 aarch64 container│
+│                         │     │                         │
+│  1. Clone netty-tcnative│     │  1. Clone netty-tcnative│
+│  2. mvn install          │     │  2. mvn install          │
+│     -pl openssl-classes, │     │     -pl openssl-classes, │
+│        openssl-dynamic   │     │        openssl-dynamic   │
+│  3. Output: JAR with .so │     │  3. Output: JAR with .so │
+│     linked to libssl.so.3│     │     linked to libssl.so.3│
+└───────────┬─────────────┘     └───────────┬─────────────┘
+            │                               │
+            └───────────┬───────────────────┘
+                        ▼
+          ┌─────────────────────────┐
+          │    Assembly step         │
+          │                         │
+          │  Collects both JARs,    │
+          │  attaches as classified │
+          │  artifacts, deploys to  │
+          │  Maven Central          │
+          └─────────────────────────┘
+```
 
-The `.so` dynamically links to `libssl.so.3`, `libcrypto.so.3`, `libapr-1.so.0`, and `libc.so.6` — all standard sonames shared across every Linux distribution with OpenSSL 3.x.
+## Project structure
+
+```
+smallrye-openssl/
+├── pom.xml              # Parent POM, pins netty-tcnative version
+├── build-native.sh      # Clones netty-tcnative, builds, extracts platform JAR
+├── assembly/
+│   └── pom.xml          # Collects platform JARs, attaches classifiers, deploys
+└── .github/workflows/
+    └── build.yml        # CI: two platform builds → assembly → Maven Central
+```
 
 ## Building locally
 
 ```bash
-mvn clean package -DskipTests
+# Build the native JAR for your current platform
+mkdir -p target/native-jars
+./build-native.sh \
+  https://github.com/netty/netty-tcnative.git \
+  netty-tcnative-parent-2.0.76.Final \
+  target/native-jars
+
+# Package the assembly (needs the native JARs in target/native-jars/)
+mvn package -pl assembly -Dnative.jars.dir=$(pwd)/target/native-jars
 ```
 
 Requires: OpenSSL 3.x dev headers, APR dev headers, autoconf, automake, libtool, gcc, make, git, JDK 21.
-
-## Building with Docker (reproducible)
-
-```bash
-docker build -t smallrye-openssl .
-docker cp $(docker create smallrye-openssl):/build/native/target/smallrye-openssl-native-1.0.0-SNAPSHOT.jar .
-```
