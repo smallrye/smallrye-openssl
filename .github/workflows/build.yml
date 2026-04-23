@@ -10,7 +10,7 @@ jobs:
 
   build-x86_64:
     name: Build native (RHEL 10 x86_64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
