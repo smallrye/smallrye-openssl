@@ -19,6 +19,56 @@
     Drop-in replacement for io.netty:netty-tcnative with modern OpenSSL support.
   </description>
 
+  <url>https://github.com/smallrye/smallrye-openssl</url>
+  <inceptionYear>2025</inceptionYear>
+
+  <organization>
+    <name>SmallRye</name>
+    <url>https://www.smallrye.io</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+      <comments>A business-friendly OSS license</comments>
+    </license>
+  </licenses>
+
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/smallrye/smallrye-openssl/issues</url>
+  </issueManagement>
+
+  <scm>
+    <connection>scm:git:git@github.com:smallrye/smallrye-openssl.git</connection>
+    <developerConnection>scm:git:git@github.com:smallrye/smallrye-openssl.git</developerConnection>
+    <url>https://github.com/smallrye/smallrye-openssl</url>
+    <tag>HEAD</tag>
+  </scm>
+
+  <developers>
+    <developer>
+      <id>arnavarr</id>
+      <name>Arthur Navarro</name>
+      <email>arnavarr@ibm.com</email>
+      <url>https://github.com/arnavarr</url>
+    </developer>
+    <developer>
+      <id>jponge</id>
+      <name>Julien Ponge</name>
+      <email>julien[AT]ponge[DOT]org</email>
+      <url>https://github.com/jponge</url>
+    </developer>
+    <developer>
+      <id>cescoffier</id>
+      <name>Clement Escoffier</name>
+      <email>clement[AT]apache[DOT]org</email>
+      <url>https://github.com/cescoffier</url>
+    </developer>
+  </developers>
+
   <properties>
     <netty.tcnative.version>2.0.76.Final</netty.tcnative.version>
     <netty.tcnative.repo>https://github.com/netty/netty-tcnative.git</netty.tcnative.repo>

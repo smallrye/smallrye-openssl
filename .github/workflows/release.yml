@@ -21,6 +21,100 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  build-x86_64:
+    name: Build native (RHEL 10 x86_64)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build in RHEL 10 x86_64 container
+        run: |
+          docker build \
+            -f docker/Dockerfile.linux-x86_64 \
+            -t smallrye-openssl-x86_64 \
+            .
+
+      - name: Extract native JAR
+        run: |
+          mkdir -p target/native-jars
+          docker run --rm -v $(pwd)/target/native-jars:/host smallrye-openssl-x86_64 cp -r /output/. /host/
+          sudo chown -R $(id -u):$(id -g) target/
+
+      - name: Upload native JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-x86_64
+          path: target/native-jars/netty-tcnative-linux-x86_64*.jar
+
+  build-aarch64:
+    name: Build native (RHEL 10 aarch64)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build in RHEL 10 aarch64 container
+        run: |
+          docker build \
+            -f docker/Dockerfile.linux-aarch_64 \
+            -t smallrye-openssl-aarch_64 \
+            .
+
+      - name: Extract native JAR
+        run: |
+          mkdir -p target/native-jars
+          docker run --rm -v $(pwd)/target/native-jars:/host smallrye-openssl-aarch_64 cp -r /output/. /host/
+          sudo chown -R $(id -u):$(id -g) target/
+
+      - name: Upload native JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-aarch_64
+          path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
+
+  assemble:
+    name: Assemble
+    needs: [build-x86_64, build-aarch64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Download x86_64 native JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x86_64
+          path: target/native-jars
+
+      - name: Download aarch64 native JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch_64
+          path: target/native-jars
+
+      - name: List collected JARs
+        run: ls -la target/native-jars/
+
+      - name: Prepare folder
+        run: mkdir ${{ github.workspace }}/target/native-jars/maven-archiver
+
+      - name: Package assembly
+        run: mvn package -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
+
+      - name: Verify artifacts
+        run: ls -la target/*.jar
+
   perform-release:
     name: Perform Release
     uses: smallrye/.github/.github/workflows/perform-release.yml@main
