@@ -10,7 +10,7 @@
 
   <groupId>io.smallrye</groupId>
   <artifactId>smallrye-openssl</artifactId>
-  <version>0.1.2-SNAPSHOT</version>
+  <version>0.1.2</version>
   <packaging>jar</packaging>
 
   <name>SmallRye OpenSSL</name>
@@ -45,7 +45,7 @@
     <connection>scm:git:git@github.com:smallrye/smallrye-openssl.git</connection>
     <developerConnection>scm:git:git@github.com:smallrye/smallrye-openssl.git</developerConnection>
     <url>https://github.com/smallrye/smallrye-openssl</url>
-    <tag>HEAD</tag>
+    <tag>0.1.2</tag>
   </scm>
 
   <developers>
