@@ -9,11 +9,6 @@ on:
       tag:
         description: 'Tag to release'
         required: true
-      dry_run:
-        description: 'Dry run the release'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   attestations: write
@@ -81,45 +76,20 @@ jobs:
           name: native-linux-aarch_64
           path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
 
-  perform-release:
-    name: Perform Release
+  assemble:
+    name: Assemble
     needs: [build-x86_64, build-aarch64]
-    environment:
-      name: Release Repository
-      url: ${{ steps.out.outputs.release-workflow-url }}
-    outputs:
-      release-workflow-id: ${{ steps.out.outputs.release-workflow-id }}
-      release-workflow-url: ${{ steps.out.outputs.release-workflow-url }}
     runs-on: ubuntu-latest
+
     steps:
-      - name: Set Release Version
-        run: echo "RELEASE_VERSION=${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_ENV
-
-      - name: Set Dry Run
-        run: echo "DRY_RUN=${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_ENV
-
-      - name: Set Artifact Path
-        run: echo "ARTIFACT_PATH=${{ github.event.repository.name }}-${RELEASE_VERSION}.tar.gz" >> $GITHUB_ENV
-
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_VERSION }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '21'
-          cache: 'maven'
-
-      - name: Detect Maven Wrapper
-        run: |
-          if [ -f mvnw ]; then
-            echo "MAVEN_EXEC=./mvnw" >> $GITHUB_ENV
-          else
-            echo "MAVEN_EXEC=mvn" >> $GITHUB_ENV
-          fi
+          distribution: 'temurin'
 
       - name: Download x86_64 native JAR
         uses: actions/download-artifact@v4
@@ -137,74 +107,19 @@ jobs:
         run: ls -la target/native-jars/
 
       - name: Prepare folder
-        run: mkdir -p target/native-jars/maven-archiver
+        run: mkdir ${{ github.workspace }}/target/native-jars/maven-archiver
 
-      - name: Deploy release ${{ env.RELEASE_VERSION }}
-        run: |
-          $MAVEN_EXEC deploy \
-            -DperformRelease \
-            -DaltDeploymentRepository=local::file://${{ github.workspace }}/repository \
-            -Dnative.jars.dir=${{ github.workspace }}/target/native-jars \
-            -DskipTests
+      - name: Package assembly
+        run: mvn package -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
 
-      - name: Tarball the artifacts
-        run: tar -czvf ${ARTIFACT_PATH} -C repository .
+      - name: Verify artifacts
+        run: ls -la target/*.jar
 
-      - name: Generate artifact attestation
-        id: attest_build_provenance
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: ${{env.ARTIFACT_PATH}}
-
-      - name: Upload assets
-        uses: actions/upload-artifact@v7
-        with:
-          path: ${{env.ARTIFACT_PATH}}
-          retention-days: 3
-
-      - uses: actions/create-github-app-token@v3
-        id: app-token
-        name: Create GitHub App Token
-        with:
-          app-id: ${{ vars.CI_APP_ID }}
-          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
-          repositories: smallrye-release
-
-      - name: Invoke SmallRye Release workflow
-        run: |
-          gh workflow run deploy-artifacts.yml -R smallrye/smallrye-release \
-            -f github_repository=${GH_REPO} \
-            -f run_id=${GH_RUN_ID} \
-            -f version=${RELEASE_VERSION} \
-            -f name=${ARTIFACT_NAME} \
-            -f dry_run=${DRY_RUN}
-
-          echo "RELEASE_WORKFLOW_RUN_NAME=Deploy ${ARTIFACT_NAME} ${RELEASE_VERSION} to Central" >> $GITHUB_ENV
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_REPO: ${{ github.repository }}
-          GH_RUN_ID: ${{ github.run_id }}
-          ARTIFACT_NAME: ${{ github.event.repository.name }}
-
-      - name: Output release version
-        id: out
-        run: |
-          # Wait for the deploy-artifacts.yml workflow to start
-          sleep 10
-          # Get the URL of the release workflow (MUST match the workflow's run-name)
-          RELEASE_WORKFLOW_DATA=$(gh run list --workflow deploy-artifacts.yml -R smallrye/smallrye-release --json databaseId,name,url -q ".[] | select(.name == \"${RELEASE_WORKFLOW_RUN_NAME}\")" --limit 1)
-          RELEASE_WORKFLOW_ID=$(jq -r '.databaseId' <<< $RELEASE_WORKFLOW_DATA)
-          RELEASE_WORKFLOW_URL=$(jq -r '.url' <<< $RELEASE_WORKFLOW_DATA)
-          echo "release-workflow-id=$RELEASE_WORKFLOW_ID" >> $GITHUB_OUTPUT
-          echo "release-workflow-url=$RELEASE_WORKFLOW_URL" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-
-      - name: Report Job Summary
-        run: |
-          echo "## Deployment status" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY # this is a blank line
-          echo "Monitor the artifacts being deployed to central here:" >> $GITHUB_STEP_SUMMARY
-          echo "- [${RELEASE_WORKFLOW_RUN_NAME}](${SUMMARY_URL})" >> $GITHUB_STEP_SUMMARY
-        env:
-          SUMMARY_URL: ${{ steps.out.outputs.release-workflow-url }}
+  perform-release:
+    name: Perform Release
+    needs: [assemble]
+    uses: smallrye/.github/.github/workflows/perform-release.yml@main
+    secrets: inherit
+    with:
+      version: ${{github.event.inputs.tag || github.ref_name}}
+      maven_args: -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
