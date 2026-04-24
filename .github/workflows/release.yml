@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build in RHEL 10 x86_64 container
         run: |
@@ -44,7 +44,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) target/
 
       - name: Upload native JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-linux-x86_64
           path: target/native-jars/netty-tcnative-linux-x86_64*.jar
@@ -55,7 +55,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build in RHEL 10 aarch64 container
         run: |
@@ -71,7 +71,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) target/
 
       - name: Upload native JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-linux-aarch_64
           path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
@@ -83,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -92,13 +92,13 @@ jobs:
           distribution: 'temurin'
 
       - name: Download x86_64 native JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: native-linux-x86_64
           path: target/native-jars
 
       - name: Download aarch64 native JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: native-linux-aarch_64
           path: target/native-jars
