@@ -117,6 +117,7 @@ jobs:
 
   perform-release:
     name: Perform Release
+    needs: [assemble]
     uses: smallrye/.github/.github/workflows/perform-release.yml@main
     secrets: inherit
     with:
