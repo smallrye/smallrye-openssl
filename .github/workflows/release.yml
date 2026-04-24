@@ -122,3 +122,4 @@ jobs:
     secrets: inherit
     with:
       version: ${{github.event.inputs.tag || github.ref_name}}
+      maven_args: -Dnative.jars.dir=${{ github.workspace }}/target/native-jars
