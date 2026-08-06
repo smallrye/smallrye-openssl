@@ -70,7 +70,7 @@
   </developers>
 
   <properties>
-    <netty.tcnative.version>2.0.76.Final</netty.tcnative.version>
+    <netty.tcnative.version>2.0.81.Final</netty.tcnative.version>
     <netty.tcnative.repo>https://github.com/netty/netty-tcnative.git</netty.tcnative.repo>
     <netty.tcnative.tag>netty-tcnative-parent-${netty.tcnative.version}</netty.tcnative.tag>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
