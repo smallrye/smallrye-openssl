@@ -17,7 +17,7 @@ WORKDIR /build
 COPY build-native.sh /build/
 
 ARG NETTY_TCNATIVE_REPO=https://github.com/netty/netty-tcnative.git
-ARG NETTY_TCNATIVE_TAG=netty-tcnative-parent-2.0.76.Final
+ARG NETTY_TCNATIVE_TAG
 
 RUN chmod +x build-native.sh && \
     mkdir -p /output && \

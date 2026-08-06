@@ -16,9 +16,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Extract tcnative tag from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=netty.tcnative.version -q -DforceStdout)
+          echo "NETTY_TCNATIVE_TAG=netty-tcnative-parent-${VERSION}" >> $GITHUB_ENV
+
       - name: Build in RHEL 10 x86_64 container
         run: |
           docker build \
+            --build-arg NETTY_TCNATIVE_TAG="${{ env.NETTY_TCNATIVE_TAG }}" \
             -f docker/Dockerfile.linux-x86_64 \
             -t smallrye-openssl-x86_64 \
             .
@@ -43,9 +49,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Extract tcnative tag from pom.xml
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=netty.tcnative.version -q -DforceStdout)
+          echo "NETTY_TCNATIVE_TAG=netty-tcnative-parent-${VERSION}" >> $GITHUB_ENV
+
       - name: Build in RHEL 10 aarch64 container
         run: |
           docker build \
+            --build-arg NETTY_TCNATIVE_TAG="${{ env.NETTY_TCNATIVE_TAG }}" \
             -f docker/Dockerfile.linux-aarch_64 \
             -t smallrye-openssl-aarch_64 \
             .
