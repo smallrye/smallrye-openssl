@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full
+        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full maven
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full
+        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full maven
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
