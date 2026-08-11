@@ -66,9 +66,57 @@ jobs:
           name: native-linux-aarch_64
           path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
 
+  smoke-test-x86_64:
+    name: Smoke Test (x86_64)
+    needs: [build-x86_64]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download x86_64 native JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x86_64
+          path: native-jars
+
+      - name: Run smoke tests in UBI 10 container (OpenSSL 3.5+)
+        run: |
+          JAR=$(realpath "$(ls native-jars/netty-tcnative-linux-x86_64*.jar)")
+          docker run --rm \
+            -v "$(pwd)/smoke-test:/smoke-test:ro" \
+            -v "$JAR:/native-jars/netty-tcnative-linux-x86_64.jar:ro" \
+            registry.access.redhat.com/ubi10/openjdk-21:latest \
+            sh -c 'microdnf install -y apr && mvn test -f /smoke-test/pom.xml -Dnative.jar=/native-jars/netty-tcnative-linux-x86_64.jar'
+
+  smoke-test-aarch64:
+    name: Smoke Test (aarch64)
+    needs: [build-aarch64]
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download aarch64 native JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: native-linux-aarch_64
+          path: native-jars
+
+      - name: Run smoke tests in UBI 10 container (OpenSSL 3.5+)
+        run: |
+          JAR=$(realpath "$(ls native-jars/netty-tcnative-linux-aarch_64*.jar)")
+          docker run --rm \
+            -v "$(pwd)/smoke-test:/smoke-test:ro" \
+            -v "$JAR:/native-jars/netty-tcnative-linux-aarch_64.jar:ro" \
+            registry.access.redhat.com/ubi10/openjdk-21:latest \
+            sh -c 'microdnf install -y apr && mvn test -f /smoke-test/pom.xml -Dnative.jar=/native-jars/netty-tcnative-linux-aarch_64.jar'
+
   assemble:
     name: Assemble
-    needs: [build-x86_64, build-aarch64]
+    needs: [build-x86_64, build-aarch64, smoke-test-x86_64, smoke-test-aarch64]
     runs-on: ubuntu-latest
 
     steps:

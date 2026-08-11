@@ -11,7 +11,7 @@
   <groupId>io.smallrye</groupId>
   <artifactId>smallrye-openssl</artifactId>
   <version>0.2.4-SNAPSHOT</version>
-  <packaging>jar</packaging>
+  <packaging>pom</packaging>
 
   <name>SmallRye OpenSSL</name>
   <description>
