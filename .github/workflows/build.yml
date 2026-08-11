@@ -95,7 +95,7 @@ jobs:
           path: native-jars
 
       - name: Run smoke tests
-        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(ls native-jars/netty-tcnative-linux-x86_64*.jar)
+        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(realpath native-jars/netty-tcnative-linux-x86_64*.jar)
 
   smoke-test-aarch64:
     name: Smoke Test (aarch64)
@@ -126,7 +126,7 @@ jobs:
           path: native-jars
 
       - name: Run smoke tests
-        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(ls native-jars/netty-tcnative-linux-aarch_64*.jar)
+        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(realpath native-jars/netty-tcnative-linux-aarch_64*.jar)
 
   assemble:
     name: Assemble
