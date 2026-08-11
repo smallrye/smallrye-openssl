@@ -77,6 +77,15 @@
     <native.jars.dir>${project.basedir}/target/native-jars</native.jars.dir>
   </properties>
 
+  <dependencies>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-tcnative</artifactId>
+      <version>${netty.tcnative.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
   <build>
     <plugins>
 
