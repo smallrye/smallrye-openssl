@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build in RHEL 10 x86_64 container
         run: |
@@ -32,7 +32,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) target/
 
       - name: Upload native JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-linux-x86_64
           path: target/native-jars/netty-tcnative-linux-x86_64*.jar
@@ -43,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build in RHEL 10 aarch64 container
         run: |
@@ -61,34 +61,96 @@ jobs:
           sudo chown -R $(id -u):$(id -g) target/
 
       - name: Upload native JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-linux-aarch_64
           path: target/native-jars/netty-tcnative-linux-aarch_64*.jar
 
+  smoke-test-x86_64:
+    name: Smoke Test (x86_64)
+    needs: [build-x86_64]
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
+
+    steps:
+      - name: Install dependencies
+        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full maven
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Verify OpenSSL version
+        run: openssl version
+
+      - name: Download x86_64 native JAR
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: native-linux-x86_64
+          path: native-jars
+
+      - name: Run smoke tests
+        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(realpath native-jars/netty-tcnative-linux-x86_64*.jar)
+
+  smoke-test-aarch64:
+    name: Smoke Test (aarch64)
+    needs: [build-aarch64]
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: ubuntu:26.04
+
+    steps:
+      - name: Install dependencies
+        run: apt-get update && apt-get install -y git curl unzip openssl libssl-dev libapr1t64 p7zip-full maven
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Verify OpenSSL version
+        run: openssl version
+
+      - name: Download aarch64 native JAR
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: native-linux-aarch_64
+          path: native-jars
+
+      - name: Run smoke tests
+        run: mvn test -f smoke-test/pom.xml -Dnative.jar=$(realpath native-jars/netty-tcnative-linux-aarch_64*.jar)
+
   assemble:
     name: Assemble
-    needs: [build-x86_64, build-aarch64]
+    needs: [build-x86_64, build-aarch64, smoke-test-x86_64, smoke-test-aarch64]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Download x86_64 native JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: native-linux-x86_64
           path: target/native-jars
 
       - name: Download aarch64 native JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: native-linux-aarch_64
           path: target/native-jars
