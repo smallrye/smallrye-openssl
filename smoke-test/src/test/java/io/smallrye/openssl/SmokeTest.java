@@ -1,10 +1,12 @@
 package io.smallrye.openssl;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -15,12 +17,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.*;
+import io.vertx.core.net.ClientSSLOptions;
 import io.vertx.core.net.OpenSSLEngineOptions;
-import io.vertx.core.net.SelfSignedCertificate;
+import io.vertx.core.net.PemKeyCertOptions;
+import io.vertx.core.net.ServerSSLOptions;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 
@@ -58,39 +59,55 @@ class SmokeTest {
 
     /**
      * Starts a Vert.x HTTPS server and client, both using our native OpenSSL library.
-     * With OpenSSL 3.5+ and TLS 1.3, the default key exchange is x25519mlkem768 (post-quantum).
      * A successful handshake and round-trip request proves the PQC stack works end-to-end.
      */
     @Test
     void postQuantumTlsRoundTrip(Vertx vertx, VertxTestContext ctx) {
-        SelfSignedCertificate cert = SelfSignedCertificate.create();
 
-        HttpServerOptions serverOpts = new HttpServerOptions()
-                .setSsl(true)
-                .setKeyCertOptions(cert.keyCertOptions())
-                .setOpenSslEngineOptions(new OpenSSLEngineOptions())
-                .setEnabledSecureTransportProtocols(Set.of("TLSv1.3"));
+        System.out.println("OpenSSL available: " + OpenSSLEngineOptions.isAvailable());
+        System.out.println("OpenSSL PQC available: " + OpenSSLEngineOptions.isPqcAvailable());
 
-        HttpClientOptions clientOpts = new HttpClientOptions()
-                .setSsl(true)
-                .setTrustOptions(cert.trustOptions())
-                .setOpenSslEngineOptions(new OpenSSLEngineOptions())
-                .setEnabledSecureTransportProtocols(Set.of("TLSv1.3"));
+        ServerSSLOptions serverOpts = new ServerSSLOptions()
+                .setKeyExchangeGroups(List.of("x25519mlkem768"))
+                .setEnabledSecureTransportProtocols(Set.of("TLSv1.3"))
+                .setKeyCertOptions(new PemKeyCertOptions()
+                        .setCertPath("src/main/resources/certs/test-cert.pem")
+                        .setKeyPath("src/main/resources/certs/test-key.pem"));
 
-        vertx.createHttpServer(serverOpts)
+        ClientSSLOptions clientOpts = new ClientSSLOptions()
+                .setKeyExchangeGroups(List.of("x25519mlkem768"))
+                .setEnabledSecureTransportProtocols(Set.of("TLSv1.3"))
+                .setTrustAll(true);
+
+        HttpClient client = vertx.httpClientBuilder()
+                .with(clientOpts)
+                .with(new OpenSSLEngineOptions())
+                .with(new HttpClientConfig().setSsl(true))
+                .build();
+
+        vertx.httpServerBuilder()
+                .with(new HttpServerConfig())
+                .with(new OpenSSLEngineOptions())
+                .with(serverOpts)
+                .build()
                 .requestHandler(req -> req.response().end("OK"))
                 .listen(0)
-                .compose(server -> vertx.createHttpClient(clientOpts)
-                        .request(HttpMethod.GET, server.actualPort(), "localhost", "/")
-                        .compose(HttpClientRequest::send)
-                        .compose(resp -> {
-                            ctx.verify(() -> assertEquals(200, resp.statusCode()));
-                            return resp.body();
-                        })
-                        .onSuccess(body -> {
-                            ctx.verify(() -> assertEquals("OK", body.toString()));
-                            ctx.completeNow();
-                        }))
-                .onFailure(ctx::failNow);
+                .compose(server -> {
+                    System.out.println("Server port: " + server.actualPort());
+                    return client.request(HttpMethod.GET, server.actualPort(), "localhost", "/");
+                })
+                .compose(HttpClientRequest::send)
+                .compose(resp -> {
+                    ctx.verify(() -> assertEquals(200, resp.statusCode()));
+                    return resp.body();
+                })
+                .onSuccess(body -> {
+                    ctx.verify(() -> assertEquals("OK", body.toString()));
+                    ctx.completeNow();
+                })
+                .onFailure(err -> {
+                    err.printStackTrace();
+                    ctx.failNow(err);
+                });
     }
 }

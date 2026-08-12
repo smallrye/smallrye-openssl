@@ -19,7 +19,9 @@
   <properties>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <vertx.version>4.5.14</vertx.version>
+    <vertx.version>5.1.6</vertx.version>
+    <bouncycastle.version>1.78.1</bouncycastle.version>
+    <junit-jupiter.version>5.11.0</junit-jupiter.version>
   </properties>
 
   <dependencies>
@@ -46,13 +48,13 @@
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk18on</artifactId>
-      <version>1.78.1</version>
+      <version>${bouncycastle.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>5.11.0</version>
+      <version>${junit-jupiter.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
