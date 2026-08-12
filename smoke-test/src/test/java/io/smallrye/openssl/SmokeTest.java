@@ -63,9 +63,8 @@ class SmokeTest {
      */
     @Test
     void postQuantumTlsRoundTrip(Vertx vertx, VertxTestContext ctx) {
-
-        System.out.println("OpenSSL available: " + OpenSSLEngineOptions.isAvailable());
-        System.out.println("OpenSSL PQC available: " + OpenSSLEngineOptions.isPqcAvailable());
+        assert (OpenSSLEngineOptions.isAvailable());
+        assert (OpenSSLEngineOptions.isPqcAvailable());
 
         ServerSSLOptions serverOpts = new ServerSSLOptions()
                 .setKeyExchangeGroups(List.of("x25519mlkem768"))
