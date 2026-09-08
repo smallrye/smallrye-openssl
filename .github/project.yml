@@ -1,4 +1,4 @@
 name: SmallRye OpenSSL
 release:
-  current-version: "0.2.3+tcnative-2.0.83.Final"
+  current-version: "0.2.3+tcnative-2.0.84.Final"
   next-version: "0.2.4-SNAPSHOT"
